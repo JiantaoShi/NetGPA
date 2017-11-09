@@ -1,0 +1,226 @@
+---
+title: "Network-based gene prioritization analysis with NetGPA"
+author: "Jiantao Shi"
+date: "`r BiocStyle::doc_date()`"
+package: "`r BiocStyle::pkg_ver('NetGPA')`"
+abstract: >
+  It has been demonstrated that genes who function in the same pathway tend to distribute in a coherent sub-network. NetGPA implements a network-based gene prioritization method. Briefly, a sub-network is built using a given set of seed genes that are assumed to function in the same pathway or similar pathways. To predict whether a query gene is functionally related to the seed genes, we project this gene to a global network, and test whether connection of this gene to the subnetwork is random or statistically significant.
+
+output:
+  BiocStyle::pdf_document:
+    fig_width: 6 
+    fig_height: 4
+    toc: true
+
+bibliography: library.bib
+
+vignette: >
+  %\VignetteIndexEntry{Network-based gene prioritization analysis with NetGPA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding[utf8]{inputenc}
+---
+
+# Intruduction
+
+Genome wide association studies (GWAS) have been successfully used to identify disease-associated variants, however the causal genes in many diseases remain elusive, due to effects such as linkage disequilibrium (LD) between associated variants and long-range regulation. Direct experimental validation of the many potential causal genes is expensive and difficult, so an attractive first step is to prioritize genes with respect their biological relevance. Several tools have been developed to address this issue, based on diverse approaches such as pathway enrichment [@Segrè2010], text mining [@Raychaudhuri2009] or protein-protein interaction (PPI) networks [@Rossin2011]. One of the most widely used tools is GRAIL [@Raychaudhuri2009], which relies on text mining of gene functions from published literature. Core functions in GRAIL have been implemented as NetGPA, which will benefit researchers who mainly use R as analytically tool. 
+
+# Standard workflow
+To demonstrate the input and output data format in NetGPA, we have included three example data sets in this package.
+
+```{r Standard workflow, eval=TRUE}
+
+library("NetGPA")
+data("Example_NetGPA")
+
+names(Example_NetGPA)
+
+```
+
+## Input data
+
+As input, NetGPA expect three objects: a list which contains symbols of seed genes, a vector which contains symbols of query genes and a integer matrix which contain gene networks. We will use examples to explain their structures.
+
+### Seed genes
+
+As an example, genes near Crohn's disease (CD) associated SNPs [@Barrett2008] are stored in a data frame `CD_GWAS`, which is part of example data `Example_NetGPA`. Since multiple genes might locate in the same SNP locus, each element in the seed list is a vector of gene symbols. 
+
+```{r Seed genes, eval=TRUE}
+
+# genes near Crohn's disease (CD) associated SNPs
+CD_GWAS = Example_NetGPA$CD_GWAS
+head(CD_GWAS)
+
+```
+An interesting feature of this data set is that all SNPs shown in the table were validated with larger sample size. Validation status for each SNP is also included in the table as VALIDATED, INDETERMINATE or FAILED. We thus could use this information to evaluate performance of our prediction.
+
+```{r Convert to list, eval=TRUE}
+
+# convert to list
+CD_SeedList <- strsplit(as.character(CD_GWAS$GIL), " ")
+names(CD_SeedList) <- rownames(CD_GWAS)
+head(CD_SeedList)
+```
+
+### Query genes
+Query genes are stored in a vector of gene symbols. In a GWAS study, it's usually the union of seed genes. Of course user could provide any genes of their interest.
+
+```{r Query genes, eval=TRUE}
+
+# show example query genes
+CD_query = unique(unlist(CD_SeedList))
+head(CD_query)
+
+```
+
+### Global networks
+NetGPA use networks for gene prioritization. A gene network is represented as an integer matrix, in which column names are all genes included and each column contains top nearest neighbors of the gene indicated by column name. Here we will use a global text-mining network as an example. 
+
+```{r Global networks, eval=TRUE}
+
+# build a example global gene-network
+data(text_2006_12_NetGPA)
+networkMatrix <- text_2006_12_NetGPA
+
+dim(networkMatrix)
+networkMatrix[1:10, c("IL12B", "TET2")]
+colnames(networkMatrix)[7408]
+
+```
+
+In the example shown above, a network covers 18835 genes and the nearest neighbor of IL12B is shown as 7408, which is the 7408th element of column names (gene IL12A). 
+
+## Quick Start
+Now we have seed genes in `CD_SeedList`, query genes in `CD_query` and networks in `networkMatrix`.
+
+```{r Quick Start, eval=TRUE}
+
+# Prioritization of Crohn's disease-associated genes
+rL <- NetGPA(CD_SeedList, CD_query, networkMatrix, Pfcutoff = 0.1, progressBar = FALSE)
+queryTable <- rL$queryTable
+
+head(queryTable[order(queryTable$queryP), ])
+
+```
+NetGPA reports the prioritization p-value for each query gene, which could be used for subsequent analysis. Of note, we only included top 10% nearest genes for each gene in `networkMatrix`, so the maximum value of `Pfcutoff` is 0.1, which works well in most conditions. We now could check performance of our prediction using validation information.
+
+```{r Validation, eval=TRUE}
+
+# Prioritization of Crohn's disease-associated genes
+library("ggplot2")
+CD_SeedTable <- rL$seedTable
+CD_SeedTable$Validation <- CD_GWAS[rownames(CD_SeedTable), "Validation"]
+
+p <- ggplot(CD_SeedTable, aes(x = Validation, y = -log10(bestP)))
+p <- p + theme_bw() + labs(x = "", y = "-log10(p-value)", title = "")
+p <- p + geom_boxplot(outlier.shape = 1, outlier.size = 2)
+p <- p + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+p <- p + theme(legend.position="none")
+print(p)
+
+```
+
+# Network database
+NetGPA could use all variety of networks, in current release, we have provided a text-mining network(`text_2006_12_NetGPA`), a co-expression network(`ce_v12_08_NetGPA`) and a integrative network(`DEPICT_2015_01_NetGPA`).
+
+In the feature, we will release more networks, including co-expression networks for Human, Mouse and Rat. 
+
+# Examples of application
+## Pathway evaluation
+Pathways are manually curated, we may want to evaluate whether genes in a given pathway are functional related based on network prediction. Let's take pathway "SIGNALING_BY_FGFR" from REACTOME as example. 
+
+```{r Pathway evaluation, eval=TRUE}
+
+# Compare FGF pathway and a random gene set
+exampleSeedFGFR <- Example_NetGPA$Cancer_GeneSet[["SIGNALING_BY_FGFR"]]
+
+pGenes <- intersect(exampleSeedFGFR, colnames(text_2006_12_NetGPA))
+rGenes <- sample(colnames(text_2006_12_NetGPA), length(pGenes)) 
+
+res    <- NetGPA(as.list(pGenes), pGenes, text_2006_12_NetGPA, progressBar = FALSE)
+pTable <- res$queryTable
+pTable$group <- "Pathway"
+
+res    <- NetGPA(as.list(rGenes), rGenes, text_2006_12_NetGPA, progressBar = FALSE)
+rTable <- res$queryTable
+rTable$group <- "Random"
+
+mT <- rbind(pTable, rTable)
+
+boxplot(-log10(queryP)~group, data = mT, ylab = "-log10(p-value)")
+
+```
+
+As shown above, most genes from FGFR-signaling are highly connected with other genes in the same pathway; in contract, we only observe non-significant signals when a random set of genes of the same size is tested.
+
+## Disease gene prioritization in Waldenstrom's macroglobulinemia
+We have successfully used NetGPA for identification of disease genes in patients with familial Waldenstrom's macroglobulinemia (WM) [@Roccaro2016]. Briefly, we performed whole exome sequencing on germ line DNA obtained from 4 family members in which coinheritance for WM was documented in 3 of them. By using standard filtering pipeline, 132 rare non-silent variants that are only present in affected members were identified. These variants locate in exons of 127 unique genes. It was expensive and time-consuming to validate all 127 genes. We thought it might be a good idea to prioritize these genes using gene sub-networks that were disrupted in WM. However, only few genes have been identified to be associated with WM. We thus took an alternative approach by comparing the gene expression profiles of WM B lymphocytes and normal B lymphocytes, the resulting gene expression signature is used as seed genes for prioritization.
+
+```{r WM, eval=TRUE}
+
+data(ce_v12_08_NetGPA)
+
+WM_Seed  <- Example_NetGPA$WM_Seed
+WM_Query <- Example_NetGPA$WM_Query
+
+# only keep genes that are present both data bases
+WM_Query <- intersect(WM_Query, colnames(text_2006_12_NetGPA))
+WM_Query <- intersect(WM_Query, colnames(ce_v12_08_NetGPA))
+
+WM_text <- NetGPA(as.list(WM_Seed), WM_Query, text_2006_12_NetGPA, progressBar = FALSE)$queryTable
+WM_coex <- NetGPA(as.list(WM_Seed), WM_Query, ce_v12_08_NetGPA,    progressBar = FALSE)$queryTable
+
+# comapre the results of text-mining and coexpression
+p_text  <- -log10(WM_text[WM_Query, "queryP"])
+p_coex  <- -log10(WM_coex[WM_Query, "queryP"])
+p_col   <- rep("black", length(WM_Query))
+p_col[WM_Query %in% c("LAPTM5", "HCLS1")] <- "red"
+
+plot(p_text, p_coex, col = p_col, type = "p", 
+     xlab = "-log10(p-value) by text-ming",
+     ylab = "-log10(p-value) by co-expression")
+text(2, 13, "HCLS1",  col = "red")
+text(5, 13, "LAPTM5", col = "red")
+```
+
+In this example, It's obvious that coexpression network has better performance, since both HCLS1 and LAPTM5 have been validated using larger sample size [@Roccaro2016]. We recommend using coexpression network when seed genes are derived from gene expression signature. More details can be found in our publication.
+
+## Identification of pathways that drives DNA methylation landscape
+It was known for many years that DNA methylation landscape of cancer is characterized by global hypo-methylation and CpG Island (CGI) hyper-methylation, in contract to global hyper-methylation and CGI hypo-methylation in normal cells. However, genes and pathways that driver this transformation remain unclear. We hypothesized that mutated genes in cancer play a role in this transformation. We have performed pathway enrichment analysis on significantly mutated genes in 31 tumor types from TCGA and found that many pathways are recurrently mutated across majority of cancer types. Top 10 pathways are listed below. 
+
+```{r Cancer pathways, eval=TRUE}
+CancerPathway <- Example_NetGPA$CancerPathway
+cbind(CancerPathway)
+```
+
+It's hard to tell which pathway drive the transformation of DNA methylation landscape. Surprisingly, bifurcation of DNA methylation landscape is also observed in normal embryonic development. Specifically, compared to Epiblast, Extraembryonic Ectoderm (ExE) is globally hypo-methylated and locally hyper-methylated at CGIs. So ExE has cancer-like DNA methylation landscape. We identified 768 ExE hyper-methylated CGIs and demonstrated that these CGIs are re-currently hyper-methylated almost all TCGA cancer types. Thus genes that locate near these CGIs represent a signature of transformation of DNA methylation. We used NetGAP to evaluate the relatedness between mutated genes in cancer and methylated genes in cancer.
+
+```{r genes drive methylation, eval=TRUE}
+
+ExE_Hyper     <- Example_NetGPA$ExE_Hyper
+Cancer_gene   <- unique(unlist(Example_NetGPA$Cancer_GeneSet))
+
+Cancer_text   <- NetGPA(as.list(ExE_Hyper), Cancer_gene, text_2006_12_NetGPA, progressBar = FALSE)
+Cancer_qTable <- Cancer_text$queryTable
+Cancer_qTable <- Cancer_qTable[order(Cancer_qTable$queryP),]
+
+FGF_names     <- c("SIGNALING_BY_FGFR_IN_DISEASE", "SIGNALING_BY_FGFR")
+FGF_pathway   <- unique(unlist(Example_NetGPA$Cancer_GeneSet[FGF_names]))
+FGF_col       <- rep("black", nrow(Cancer_qTable))
+FGF_col[rownames(Cancer_qTable) %in% FGF_pathway] = "red"
+
+barplot(-log10(Cancer_qTable$queryP)[1:100], col = FGF_col[1:100])
+```
+
+Of the top 10 pathways that are mutated in cancer, FGF pathway is functionally related to cancer methylation signature with highest significance (by rank sum test). We only shows most significant 100 genes (genes in FGF signaling pathways are shown in red). We have successfully validated the role of FGF in regulation of DNA methylation in normal development [@Smith2017].
+
+
+# Citation
+If you use NetGPA in published research, please cite NetGPA and also [@Raychaudhuri2009].
+
+# Session info
+
+```{r sessionInfo}
+sessionInfo()
+```
+
+# References

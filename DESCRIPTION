@@ -1,0 +1,13 @@
+Package: NetGPA
+Title: Network-based Gene Prioritization Analysis (NetGPA)
+Version: 0.99.0
+Author: Jiantao Shi
+Maintainer: Jiantao Shi <jshi@jimmy.harvard.edu>
+Description: Network-based Gene Prioritization Analysis.
+VignetteBuilder: knitr
+Suggests: BiocStyle, knitr, rmarkdown
+Depends: R (>= 3.0.0)
+License: GNU GPL (>= 3)
+biocViews: GraphAndNetwork, Network, NetworkEnrichment
+Encoding: UTF-8
+RoxygenNote: 6.0.1
