@@ -124,7 +124,7 @@ NetGPA could use all variety of networks, in current release, we have provided a
 
 In the feature, we will release more networks, including co-expression networks for Human, Mouse and Rat. 
 
-# Examples of application
+# Examples of applications
 ## Pathway evaluation
 Pathways are manually curated, we may want to evaluate whether genes in a given pathway are functional related based on network prediction. Let's take pathway "SIGNALING_BY_FGFR" from REACTOME as example. 
 
@@ -184,7 +184,7 @@ text(5, 13, "LAPTM5", col = "red")
 
 In this example, It's obvious that coexpression network has better performance, since both HCLS1 and LAPTM5 have been validated using larger sample size [@Roccaro2016]. We recommend using coexpression network when seed genes are derived from gene expression signature. More details can be found in our publication.
 
-## Identification of pathways that drives DNA methylation landscape
+## Identification of pathways that drive DNA methylation landscape
 It was known for many years that DNA methylation landscape of cancer is characterized by global hypo-methylation and CpG Island (CGI) hyper-methylation, in contract to global hyper-methylation and CGI hypo-methylation in normal cells. However, genes and pathways that driver this transformation remain unclear. We hypothesized that mutated genes in cancer play a role in this transformation. We have performed pathway enrichment analysis on significantly mutated genes in 31 tumor types from TCGA and found that many pathways are recurrently mutated across majority of cancer types. Top 10 pathways are listed below. 
 
 ```{r Cancer pathways, eval=TRUE}
