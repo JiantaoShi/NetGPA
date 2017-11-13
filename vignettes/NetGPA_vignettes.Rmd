@@ -7,7 +7,7 @@ abstract: >
   It has been demonstrated that genes who function in the same pathway tend to distribute in a coherent sub-network. NetGPA implements a network-based gene prioritization method. Briefly, a sub-network is built using a given set of seed genes that are assumed to function in the same pathway or similar pathways. To predict whether a query gene is functionally related to the seed genes, we project this gene to a global network, and test whether connection of this gene to the subnetwork is random or statistically significant.
 
 output:
-  BiocStyle::pdf_document:
+  BiocStyle::html_document:
     fig_width: 6 
     fig_height: 4
     toc: true
@@ -122,7 +122,7 @@ print(p)
 # Network database
 NetGPA could use all variety of networks, in current release, we have provided a text-mining network(`text_2006_12_NetGPA`), a co-expression network(`ce_v12_08_NetGPA`) and a integrative network(`DEPICT_2015_01_NetGPA`).
 
-In the feature, we will release more networks, including co-expression networks for Human, Mouse and Rat. 
+In the future, we will release more networks, including co-expression networks for Human, Mouse and Rat. 
 
 # Examples of applications
 ## Pathway evaluation
