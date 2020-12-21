@@ -65,7 +65,7 @@ NetGPA <- function(seedListName, queryName, dbMatrix, Pfcutoff = 0.1, progressBa
 
     # index seed
     seedList <- indexSeedList(seedListName, dbMatrix)
-    if(length(seedList) < 20)
+    if(length(seedList) < 10)
         stop("Number of regions are too small, try a larger set of seed genes.\n")
 
     # check query genes
